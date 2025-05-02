@@ -44,6 +44,8 @@ RUNTIME_RATIO_NORMALIZED = {k: v/TOTAL_RATIO for k, v in RUNTIME_RATIO.items()}
 # Create sidebar for inputs
 st.sidebar.header("Input Parameters")
 
+
+
 throughput_improvement = st.sidebar.slider(
     "Throughput Improvement (%)",
     min_value=0.0,
@@ -54,7 +56,7 @@ throughput_improvement = st.sidebar.slider(
 )
 
 runtime_percentage = st.sidebar.slider(
-    "Runtime Percentage (%)",
+    "Machine Availability (%)",
     min_value=0.0,
     max_value=100.0,
     value=80.0,
@@ -79,6 +81,58 @@ num_months = st.sidebar.number_input(
     step=1,
     help="Number of months to project metrics for"
 )
+# Runtime Ratio inputs
+st.sidebar.subheader("Runtime Ratio (%)")
+# st.sidebar.markdown("*Note: Values must sum to 100%*")
+
+# Default runtime ratio values
+default_small = 13.0
+default_medium = 9.0
+default_large = 78.0
+
+# Input fields for runtime ratios
+runtime_small = st.sidebar.number_input(
+    "Small Bags (%)",
+    min_value=0.0,
+    max_value=100.0,
+    value=default_small,
+    step=0.01,
+    help="Percentage of runtime allocated to Small bags"
+)
+
+runtime_medium = st.sidebar.number_input(
+    "Medium Bags (%)",
+    min_value=0.0,
+    max_value=100.0,
+    value=default_medium,
+    step=0.01,
+    help="Percentage of runtime allocated to Medium bags"
+)
+
+runtime_large = st.sidebar.number_input(
+    "Large Bags (%)",
+    min_value=0.0,
+    max_value=100.0,
+    value=default_large,
+    step=0.01,
+    help="Percentage of runtime allocated to Large bags"
+)
+
+# Calculate total and display warning if not 100%
+runtime_total = runtime_small + runtime_medium + runtime_large
+if runtime_total != 100.0:
+    st.sidebar.warning(f"Runtime ratios sum to {runtime_total:.2f}%, not 100%. Results may be inaccurate.")
+
+# Update RUNTIME_RATIO based on user input
+RUNTIME_RATIO = {
+    "Small": runtime_small,
+    "Medium": runtime_medium,
+    "Large": runtime_large
+}
+
+# Recalculate normalized ratios
+TOTAL_RATIO = sum(RUNTIME_RATIO.values())
+RUNTIME_RATIO_NORMALIZED = {k: v/TOTAL_RATIO for k, v in RUNTIME_RATIO.items()}
 
 # Calculate metrics
 def calculate_metrics(throughput_improvement, runtime_percentage, num_lines, num_months):
@@ -171,14 +225,14 @@ with kpi_cols[0]:
 
 with kpi_cols[1]:
     st.metric(
-        "Savings per Month",
+        "Estimated Profit per Month",
         f"${summary_results['Savings/Month ($)']:,.2f}",
         f"{(summary_results['Savings/Month ($)'] / summary_results['Baseline Revenue/Month ($)'] * 100):.1f}%"
     )
 
 with kpi_cols[2]:
     st.metric(
-        "Revenue Potential per Month",
+        "Estimated Revenue Potential per Month",
         f"${summary_results['Revenue Potential/Month ($)']:,.2f}"
     )
 
@@ -195,13 +249,13 @@ with total_kpi_cols[0]:
 
 with total_kpi_cols[1]:
     st.metric(
-        f"Total Savings",
+        f"Total Estimated Profit",
         f"${summary_results['Savings Total ($)']:,.2f}"
     )
 
 with total_kpi_cols[2]:
     st.metric(
-        f"Total Revenue Potential",
+        f"Total Estimated Revenue Potential",
         f"${summary_results['Revenue Potential Total ($)']:,.2f}"
     )
 
@@ -323,7 +377,7 @@ with st.expander("View Constants"):
     - **Agent Throughput**: Baseline Throughput × (1 + Throughput Improvement %)
     - **Bags per Hour**: Throughput (kg/hr) ÷ KG/Bag
     - **Revenue per Hour**: Bags per Hour × Net Revenue per Bag
-    - **Weighted Averages**: Calculated using runtime ratios (13.15:78.49:8.35)
+    - **Weighted Averages**: Calculated using user-defined runtime ratios
     - **Monthly Projections**: Hourly values × 24 hrs × Runtime % × 30 days
     - **Incremental Bags**: Agent Bags - Baseline Bags
     - **Savings**: Agent Revenue - Baseline Revenue
