@@ -23,6 +23,11 @@ NET_REVENUE_PER_BAG = {
     "Medium": 5.2,
     "Large": 24.3
 }
+NET_PROFIT_PER_BAG = {
+    "Small": 0.15,
+    "Medium": 0.65,
+    "Large": 4.25
+}
 KG_PER_BAG = {
     "Small": 0.06,
     "Medium": 0.20,
@@ -35,8 +40,8 @@ BASELINE_THROUGHPUT = {
 }
 RUNTIME_RATIO = {
     "Small": 13.15,
-    "Medium": 8.35,
-    "Large": 78.49
+    "Medium": 78.49,
+    "Large": 8.35
 }
 TOTAL_RATIO = sum(RUNTIME_RATIO.values())
 RUNTIME_RATIO_NORMALIZED = {k: v/TOTAL_RATIO for k, v in RUNTIME_RATIO.items()}
@@ -50,7 +55,7 @@ throughput_improvement = st.sidebar.slider(
     "Throughput Improvement (%)",
     min_value=0.0,
     max_value=50.0,
-    value=5.0,
+    value=8.0,
     step=0.1,
     help="Expected percentage improvement in throughput compared to baseline"
 )
@@ -86,9 +91,9 @@ st.sidebar.subheader("Runtime Ratio (%)")
 # st.sidebar.markdown("*Note: Values must sum to 100%*")
 
 # Default runtime ratio values
-default_small = 13.0
-default_medium = 9.0
-default_large = 78.0
+default_small = 13.15
+default_medium = 78.49
+default_large = 8.35
 
 # Input fields for runtime ratios
 runtime_small = st.sidebar.number_input(
@@ -151,14 +156,20 @@ def calculate_metrics(throughput_improvement, runtime_percentage, num_lines, num
         baseline_revenue_per_hour = baseline_bags_per_hour * NET_REVENUE_PER_BAG[bag_size]
         agent_revenue_per_hour = agent_bags_per_hour * NET_REVENUE_PER_BAG[bag_size]
         
+        # Calculate baseline and agent net profit per hour
+        baseline_profit_per_hour = baseline_bags_per_hour * NET_PROFIT_PER_BAG[bag_size]
+        agent_profit_per_hour = agent_bags_per_hour * NET_PROFIT_PER_BAG[bag_size]
+        
         # Store results for this bag size
         results[bag_size] = {
             "Baseline Throughput (kg/hr)": BASELINE_THROUGHPUT[bag_size],
             "Agent Throughput (kg/hr)": agent_throughput,
             "Baseline Bags/Hour": baseline_bags_per_hour,
-            "Agent Bags/Hour": agent_bags_per_hour,
+            "Agent Bags/Hour": agent_bags_per_hour ,
             "Baseline Revenue/Hour ($)": baseline_revenue_per_hour,
             "Agent Revenue/Hour ($)": agent_revenue_per_hour,
+            "Baseline Profit/Hour ($)": baseline_profit_per_hour,
+            "Agent Profit/Hour ($)": agent_profit_per_hour,
             "Runtime Ratio": RUNTIME_RATIO[bag_size]
         }
     
@@ -167,6 +178,8 @@ def calculate_metrics(throughput_improvement, runtime_percentage, num_lines, num
     weighted_agent_bags_per_hour = sum(results[bag_size]["Agent Bags/Hour"] * RUNTIME_RATIO_NORMALIZED[bag_size] for bag_size in BAG_SIZES)
     weighted_baseline_revenue_per_hour = sum(results[bag_size]["Baseline Revenue/Hour ($)"] * RUNTIME_RATIO_NORMALIZED[bag_size] for bag_size in BAG_SIZES)
     weighted_agent_revenue_per_hour = sum(results[bag_size]["Agent Revenue/Hour ($)"] * RUNTIME_RATIO_NORMALIZED[bag_size] for bag_size in BAG_SIZES)
+    weighted_baseline_profit_per_hour = sum(results[bag_size]["Baseline Profit/Hour ($)"] * RUNTIME_RATIO_NORMALIZED[bag_size] for bag_size in BAG_SIZES)
+    weighted_agent_profit_per_hour = sum(results[bag_size]["Agent Profit/Hour ($)"] * RUNTIME_RATIO_NORMALIZED[bag_size] for bag_size in BAG_SIZES)
     
     # Calculate monthly projections
     hours_per_month = 24 * 30 * (runtime_percentage / 100)
@@ -174,11 +187,13 @@ def calculate_metrics(throughput_improvement, runtime_percentage, num_lines, num
     agent_bags_per_month = weighted_agent_bags_per_hour * hours_per_month
     baseline_revenue_per_month = weighted_baseline_revenue_per_hour * hours_per_month
     agent_revenue_per_month = weighted_agent_revenue_per_hour * hours_per_month
+    baseline_profit_per_month = weighted_baseline_profit_per_hour * hours_per_month
+    agent_profit_per_month = weighted_agent_profit_per_hour * hours_per_month
     
     # Calculate key performance indicators
     incremental_bags_per_month = (agent_bags_per_month - baseline_bags_per_month) * num_lines
-    savings_per_month = (agent_revenue_per_month - baseline_revenue_per_month) * num_lines
-    revenue_potential_per_month = agent_revenue_per_month * num_lines
+    savings_per_month = (agent_profit_per_month - baseline_profit_per_month) * num_lines
+    revenue_potential_per_month = (agent_revenue_per_month - baseline_revenue_per_month) * num_lines
     
     # Calculate total metrics for the specified number of months
     incremental_bags_total = incremental_bags_per_month * num_months
@@ -191,10 +206,14 @@ def calculate_metrics(throughput_improvement, runtime_percentage, num_lines, num
         "Weighted Agent Bags/Hour": weighted_agent_bags_per_hour,
         "Weighted Baseline Revenue/Hour ($)": weighted_baseline_revenue_per_hour,
         "Weighted Agent Revenue/Hour ($)": weighted_agent_revenue_per_hour,
+        "Weighted Baseline Profit/Hour ($)": weighted_baseline_profit_per_hour,
+        "Weighted Agent Profit/Hour ($)": weighted_agent_profit_per_hour,
         "Baseline Bags/Month": baseline_bags_per_month,
         "Agent Bags/Month": agent_bags_per_month,
         "Baseline Revenue/Month ($)": baseline_revenue_per_month,
         "Agent Revenue/Month ($)": agent_revenue_per_month,
+        "Baseline Profit/Month ($)": baseline_profit_per_month,
+        "Agent Profit/Month ($)": agent_profit_per_month,
         "Incremental Bags/Month": incremental_bags_per_month,
         "Savings/Month ($)": savings_per_month,
         "Revenue Potential/Month ($)": revenue_potential_per_month,
@@ -226,14 +245,14 @@ with kpi_cols[0]:
 with kpi_cols[1]:
     st.metric(
         "Estimated Profit per Month",
-        f"${summary_results['Savings/Month ($)']:,.2f}",
+        f"${summary_results['Savings/Month ($)'] / 1000:.1f}k",
         f"{(summary_results['Savings/Month ($)'] / summary_results['Baseline Revenue/Month ($)'] * 100):.1f}%"
     )
 
 with kpi_cols[2]:
     st.metric(
         "Estimated Revenue Potential per Month",
-        f"${summary_results['Revenue Potential/Month ($)']:,.2f}"
+        f"${summary_results['Revenue Potential/Month ($)'] / 1000:.1f}k"
     )
 
 # Total KPIs for selected number of months
@@ -250,13 +269,13 @@ with total_kpi_cols[0]:
 with total_kpi_cols[1]:
     st.metric(
         f"Total Estimated Profit",
-        f"${summary_results['Savings Total ($)']:,.2f}"
+        f"${summary_results['Savings Total ($)'] / 1000:.1f}k"
     )
 
 with total_kpi_cols[2]:
     st.metric(
         f"Total Estimated Revenue Potential",
-        f"${summary_results['Revenue Potential Total ($)']:,.2f}"
+        f"${summary_results['Revenue Potential Total ($)'] / 1000:.1f}k"
     )
 
 # Display detailed metrics
@@ -275,7 +294,8 @@ with tabs[0]:
     
     # Reorder columns for better display
     columns_order = ["Bag Size", "Runtime Ratio", "Baseline Throughput (kg/hr)", "Agent Throughput (kg/hr)", 
-                    "Baseline Bags/Hour", "Agent Bags/Hour", "Baseline Revenue/Hour ($)", "Agent Revenue/Hour ($)"]
+                    "Baseline Bags/Hour", "Agent Bags/Hour", "Baseline Revenue/Hour ($)", "Agent Revenue/Hour ($)",
+                    "Baseline Profit/Hour ($)", "Agent Profit/Hour ($)"]
     bag_df = bag_df[columns_order]
     
     # Format data
@@ -365,6 +385,7 @@ with st.expander("View Constants"):
     specs_df = pd.DataFrame({
         "Bag Size": BAG_SIZES,
         "Net Revenue per Bag ($)": [NET_REVENUE_PER_BAG[size] for size in BAG_SIZES],
+        "Net Profit per Bag ($)": [NET_PROFIT_PER_BAG[size] for size in BAG_SIZES],
         "KG per Bag": [KG_PER_BAG[size] for size in BAG_SIZES],
         "Baseline Throughput (kg/hr)": [BASELINE_THROUGHPUT[size] for size in BAG_SIZES],
         "Runtime Ratio (%)": [RUNTIME_RATIO[size] for size in BAG_SIZES]
@@ -377,10 +398,12 @@ with st.expander("View Constants"):
     - **Agent Throughput**: Baseline Throughput × (1 + Throughput Improvement %)
     - **Bags per Hour**: Throughput (kg/hr) ÷ KG/Bag
     - **Revenue per Hour**: Bags per Hour × Net Revenue per Bag
+    - **Profit per Hour**: Bags per Hour × Net Profit per Bag
     - **Weighted Averages**: Calculated using user-defined runtime ratios
     - **Monthly Projections**: Hourly values × 24 hrs × Runtime % × 30 days
     - **Incremental Bags**: Agent Bags - Baseline Bags
-    - **Savings**: Agent Revenue - Baseline Revenue
+    - **Savings**: Agent Profit - Baseline Profit
+    - **Revenue Potential**: Agent Revenue - Baseline Revenue
     - **Total Metrics**: Monthly metrics × Number of Months
     """)
 
