@@ -24,14 +24,14 @@ NET_REVENUE_PER_BAG = {
     "Large": 24.3
 }
 NET_PROFIT_PER_BAG = {
-    "Small": 0.15,
-    "Medium": 0.65,
-    "Large": 4.25
+    "Small": 0.11250,
+    "Medium": 0.39000,
+    "Large": 1.1135
 }
 KG_PER_BAG = {
-    "Small": 0.06,
-    "Medium": 0.20,
-    "Large": 1.0
+    "Small": 0.05,
+    "Medium": 0.12,
+    "Large": 0.25
 }
 BASELINE_THROUGHPUT = {
     "Small": 129.93,
