@@ -19,9 +19,9 @@ Enter your parameters in the sidebar to see the impact on production and revenue
 # Constants
 BAG_SIZES = ["Small", "Medium", "Large"]
 NET_REVENUE_PER_BAG = {
-    "Small": 1.5,
-    "Medium": 5.2,
-    "Large": 24.3
+    "Small": 1.1,
+    "Medium": 3.1,
+    "Large": 6.4
 }
 NET_PROFIT_PER_BAG = {
     "Small": 0.11250,
